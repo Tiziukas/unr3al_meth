@@ -1,3 +1,4 @@
+---@diagnostic disable: missing-parameter
 local Keys = {
 	["ESC"] = 322, ["F1"] = 288, ["F2"] = 289, ["F3"] = 170, ["F5"] = 166, ["F6"] = 167, ["F7"] = 168, ["F8"] = 169, ["F9"] = 56, ["F10"] = 57,
 	["~"] = 243, ["1"] = 157, ["2"] = 158, ["3"] = 160, ["4"] = 164, ["5"] = 165, ["6"] = 159, ["7"] = 161, ["8"] = 162, ["9"] = 163, ["-"] = 84, ["="] = 83, ["BACKSPACE"] = 177,
@@ -9,59 +10,97 @@ local Keys = {
 	["LEFT"] = 174, ["RIGHT"] = 175, ["TOP"] = 27, ["DOWN"] = 173,
 	["NENTER"] = 201, ["N4"] = 108, ["N5"] = 60, ["N6"] = 107, ["N+"] = 96, ["N-"] = 97, ["N7"] = 117, ["N8"] = 61, ["N9"] = 118
 }
-local started = false
-local displayed = false
-local progress = 0
-local CurrentVehicle 
-local pause = false
-local selection = 0
-local quality = 0
-ESX = nil
 
-local LastCar
+
+local CurrentVehicle, LastCar
+local progress, quality = 0, 0
+local started, displayed, pause, posLog, CurrentVehicleLog, carLog, LastCarLog, modelLog, modelNameLog, LastVehicleLog = false, false, false, false, false, false, false, false, false, false
+
+
 
 function DisplayHelpText(str)
 	SetTextComponentFormat("STRING")
 	AddTextComponentString(str)
+---@diagnostic disable-next-line: param-type-mismatch
 	DisplayHelpTextFromStringLabel(0, 0, 1, -1)
 end
-Citizen.CreateThread(function()
-	while ESX == nil do
-		TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-		Citizen.Wait(0)
-	end
-end)
+ESX = exports["es_extended"]:getSharedObject()
 
 RegisterNetEvent('esx_methcar:stop')
 AddEventHandler('esx_methcar:stop', function()
 	started = false
-	DisplayHelpText("~r~Production stopped...")
+	DisplayHelpText(Config.Locale.Production_Stoped)
 	FreezeEntityPosition(LastCar, false)
+	Citizen.Wait(10000)
+	if not started then
+		---@diagnostic disable-next-line: param-type-mismatch
+		StopParticleFxLooped(smokeC, 0)
+	end
 end)
+
 RegisterNetEvent('esx_methcar:stopfreeze')
 AddEventHandler('esx_methcar:stopfreeze', function(id)
 	FreezeEntityPosition(id, false)
 end)
+
 RegisterNetEvent('esx_methcar:notify')
-AddEventHandler('esx_methcar:notify', function(message)
-	ESX.ShowNotification(message)
+AddEventHandler('esx_methcar:notify', function(notitype, message)
+	notifications(notitype, message, Config.Noti.time)
 end)
 
 RegisterNetEvent('esx_methcar:startprod')
 AddEventHandler('esx_methcar:startprod', function()
-	DisplayHelpText("~g~Starting production")
-	started = true
+	if Config.Debug then
+		print("Starting Skillcheck")
+	end
 	FreezeEntityPosition(CurrentVehicle,true)
-	displayed = false
-	print('Started Meth production')
-	ESX.ShowNotification("~r~Meth production has started")	
-	SetPedIntoVehicle(GetPlayerPed(-1), CurrentVehicle, 3)
+
+	SetPedIntoVehicle(PlayerPedId(), CurrentVehicle, 3)
+---@diagnostic disable-next-line: missing-parameter
 	SetVehicleDoorOpen(CurrentVehicle, 2)
+
+	if Config.SkillCheck.StartingProd.Enabled then
+		Citizen.Wait(1500)
+		local success = lib.skillCheck(Config.SkillCheck.StartingProd.Difficulty, Config.SkillCheck.StartingProd.Key)
+
+		if success then
+			started = true
+			lib.hideTextUI()
+
+			if Config.Debug then
+				print('Started Meth production')
+			end
+			
+			notifications(Config.Noti.success, Config.Locale.Production_Started, Config.Noti.time)
+		else
+			lib.hideTextUI()
+
+			notifications(Config.Noti.error, Config.Locale.Failed_Start, Config.Noti.time)
+			Citizen.Wait(1000)
+			local pos = GetEntityCoords(PlayerPedId())
+			TriggerServerEvent('esx_methcar:blow', pos.x, pos.y, pos.z)
+
+			if Config.Debug then
+				print('Failed start Skillcheck, blowing up')
+			end
+		end
+	else
+		started = true
+		lib.hideTextUI()
+		displayed = false
+
+		if Config.Debug then
+			print('Started Meth production')
+		end
+		notifications(Config.Noti.success, Config.Locale.Production_Started, Config.Noti.time)
+	end
 end)
 
 RegisterNetEvent('esx_methcar:blowup')
 AddEventHandler('esx_methcar:blowup', function(posx, posy, posz)
+---@diagnostic disable-next-line: redundant-parameter
 	AddExplosion(posx, posy, posz + 2,23, 20.0, true, false, 1.0, true)
+	SetVehicleEngineHealth(car, -4000)
 	if not HasNamedPtfxAssetLoaded("core") then
 		RequestNamedPtfxAsset("core")
 		while not HasNamedPtfxAssetLoaded("core") do
@@ -70,11 +109,14 @@ AddEventHandler('esx_methcar:blowup', function(posx, posy, posz)
 	end
 	SetPtfxAssetNextCall("core")
 	local fire = StartParticleFxLoopedAtCoord("ent_ray_heli_aprtmnt_l_fire", posx, posy, posz-0.8 , 0.0, 0.0, 0.0, 0.8, false, false, false, false)
+	Citizen.Wait(5000)
+---@diagnostic disable-next-line: param-type-mismatch
+	StopParticleFxLooped(smokeC, 0)
 	Citizen.Wait(6000)
+---@diagnostic disable-next-line: param-type-mismatch
 	StopParticleFxLooped(fire, 0)
 	
 end)
-
 
 RegisterNetEvent('esx_methcar:smoke')
 AddEventHandler('esx_methcar:smoke', function(posx, posy, posz, bool)
@@ -88,554 +130,1057 @@ AddEventHandler('esx_methcar:smoke', function(posx, posy, posz, bool)
 			end
 		end
 		SetPtfxAssetNextCall("core")
-		local smoke = StartParticleFxLoopedAtCoord("exp_grd_flare", posx, posy, posz + 1.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
-		SetParticleFxLoopedAlpha(smoke, 0.8)
-		SetParticleFxLoopedColour(smoke, 0.0, 0.0, 0.0, 0)
+		if Config.SmokeColor == 'white' then
+			smokeC = StartParticleFxLoopedAtCoord("ent_amb_smoke_foundry_white", posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
+		end
+		if Config.SmokeColor == 'orange' then
+			smokeC = StartParticleFxLoopedAtCoord("exp_grd_flare", posx, posy, posz + 1.5, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
+		end
+		if Config.SmokeColor == 'black' then
+			smokeC = StartParticleFxLoopedAtCoord("ent_amb_smoke_foundry ", posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
+		end
+		SetParticleFxLoopedAlpha(smokeC, 0.8)
+---@diagnostic disable-next-line: param-type-mismatch
+		SetParticleFxLoopedColour(smokeC, 0.0, 0.0, 0.0, 0)
 		Citizen.Wait(22000)
-		StopParticleFxLooped(smoke, 0)
+---@diagnostic disable-next-line: param-type-mismatch
+		StopParticleFxLooped(smokeC, 0)
 	else
-		StopParticleFxLooped(smoke, 0)
+---@diagnostic disable-next-line: param-type-mismatch
+		StopParticleFxLooped(smokeC, 0)
 	end
 
 end)
+
 RegisterNetEvent('esx_methcar:drugged')
 AddEventHandler('esx_methcar:drugged', function()
 	SetTimecycleModifier("drug_drive_blend01")
-	SetPedMotionBlur(GetPlayerPed(-1), true)
-	SetPedMovementClipset(GetPlayerPed(-1), "MOVE_M@DRUNK@SLIGHTLYDRUNK", true)
-	SetPedIsDrunk(GetPlayerPed(-1), true)
+	SetPedMotionBlur(PlayerPedId(), true)
+---@diagnostic disable-next-line: param-type-mismatch
+	SetPedMovementClipset(PlayerPedId(), "MOVE_M@DRUNK@SLIGHTLYDRUNK", true)
+	SetPedIsDrunk(PlayerPedId(), true)
 
 	Citizen.Wait(300000)
 	ClearTimecycleModifier()
 end)
 
-
-
 Citizen.CreateThread(function()
 	while true do
 		Citizen.Wait(10)
-		
-		playerPed = GetPlayerPed(-1)
-		local pos = GetEntityCoords(GetPlayerPed(-1))
+
+		playerPed = PlayerPedId()
+		if Config.Debug and not playerPedLog then
+			playerPedLog = ESX.SetTimeout(5000, function()
+				print("Ped: "..playerPed)
+				local playerPedLog = false
+			end)
+		end
+		local pos = GetEntityCoords(PlayerPedId())
+        if Config.Debug and not posLog then
+            posLog = ESX.SetTimeout(5000, function()
+                print("Pos: "..pos)
+                posLog = false
+            end)
+        end
+
 		if IsPedInAnyVehicle(playerPed) then
-			
-			
+
 			CurrentVehicle = GetVehiclePedIsUsing(PlayerPedId())
+			if Config.Debug and not CurrentVehicleLog then
+				CurrentVehicleLog = ESX.SetTimeout(5000, function()
+					print("CurrentVehicle: "..CurrentVehicle)
+					CurrentVehicleLog = false
+				end)
+			end
 
 			car = GetVehiclePedIsIn(playerPed, false)
+			if Config.Debug and not carLog then
+				carLog = ESX.SetTimeout(5000, function()
+					print("Car: "..car)
+					carLog = false
+				end)
+			end
+
 			LastCar = GetVehiclePedIsUsing(playerPed)
-	
+			if Config.Debug and not LastCarLog then
+				LastCarLog = ESX.SetTimeout(5000, function()
+					print("Last Car: "..LastCar)
+					LastCarLog = false
+				end)
+			end
+
 			local model = GetEntityModel(CurrentVehicle)
+			if Config.Debug and not modelLog then
+				modelLog = ESX.SetTimeout(5000, function()
+					print("Model: "..model)
+					modelLog = false
+				end)
+			end
 			local modelName = GetDisplayNameFromVehicleModel(model)
-			
+			if Config.Debug and modelNameLog then
+				modelNameLog = ESX.SetTimeout(5000, function()
+					print("Modelname: "..modelName)
+					modelNameLog = false
+				end)
+			end
+
 			if modelName == 'JOURNEY' and car then
 				
-					if GetPedInVehicleSeat(car, -1) == playerPed then
-						if started == false then
-							if displayed == false then
-								DisplayHelpText("Press ~INPUT_THROW_GRENADE~ to start making drugs")
-								displayed = true
+				if GetPedInVehicleSeat(car, -1) == playerPed then
+					if started == false then
+						if displayed == false then
+							if Config.Debug then
+								print("Showing TextUI")
 							end
-						end
-						if IsControlJustReleased(0, Keys['G']) then
-							if pos.y >= 3500 then
-								if IsVehicleSeatFree(CurrentVehicle, 3) then
-									TriggerServerEvent('esx_methcar:start')	
-									progress = 0
-									pause = false
-									selection = 0
-									quality = 0
-									
-								else
-									DisplayHelpText('~r~The car is already occupied')
-								end
-							else
-								ESX.ShowNotification('~r~You are too close to the city, head further up north to begin meth production')
-							end
-							
-							
-							
-							
-		
+							lib.showTextUI("["..Config.StartKey.."] " ..Config.Locale.Help_Text)
+							displayed = true
 						end
 					end
-					
-				
-				
-			
-			end
-			
-		else
+					if IsControlJustPressed(0, Keys[Config.StartKey]) then
+						ESX.TriggerServerCallback('esx_methcar:getcops', function(data)
+						   print(data)
+						   Cops = data
 
-				
-				if started then
-					started = false
-					displayed = false
-					TriggerEvent('esx_methcar:stop')
-					print('Stopped making drugs')
-					FreezeEntityPosition(LastCar,false)
+						   if #Cops >= Config.PoliceCount then
+								if Config.Debug then
+									print("Trying to start propduction")
+								end
+								if pos.y >= 100 then
+									if IsVehicleSeatFree(CurrentVehicle, 3) then
+										TriggerServerEvent('esx_methcar:start')	
+										progress = 0
+										pause = false
+										quality = 0
+									else
+										notifications(Config.Noti.error, Config.Locale.Seat_Occupied, Config.Noti.time)
+									end
+								else
+									notifications(Config.Noti.error, Config.Locale.Near_City, Config.Noti.time)
+								end
+							else
+								notifications(Config.Noti.error, Config.Locale.Not_Enough_Cops, Config.Noti.time)
+							end
+
+						end)
+					end
 				end
+			end
+		else
+			if started then
+				started = false
+				displayed = false
+				TriggerEvent('esx_methcar:stop')
+				if Config.Debug then
+					print('Stopped making drugs')
+				end
+				FreezeEntityPosition(LastCar,false)
+			end
 		end
 		
 		if started == true then
 			
-			if progress < 96 then
-				Citizen.Wait(6000)
-				if not pause and IsPedInAnyVehicle(playerPed) then
-					progress = progress +  1
-					ESX.ShowNotification('~r~Meth production: ~g~~h~' .. progress .. '%')
-					Citizen.Wait(6000) 
-				end
+			lib.registerContext({
+				id = 'Event_01',
+				title = Config.Locale.Question_01,
+				onExit = function()
+					Citizen.Wait(20)
+					TriggerEvent('esx_methcar:stop')
+				end,
+				options = {
+					{title = Config.Locale.Choose_Option, icon = 'question', description = Config.Locale.Update1 .. progress .. Config.Locale.Update2},
+					{
+						title =  Config.Locale.Question_01_Answer_1,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 1')
+							end
+						  	quality = quality - 3
+						  	lib.hideContext(true)
 
-				--
-				--   EVENT 1
-				--
-				if progress > 22 and progress < 24 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~The propane pipe is leaking, what do you do?')	
-						ESX.ShowNotification('~o~1. Fix using tape')
-						ESX.ShowNotification('~o~2. Leave it be ')
-						ESX.ShowNotification('~o~3. Replace it')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_01.Enabled then
+								if Questions.Question_01.DifficultyAnswer_1 == 0 then
+									pause = false
+								elseif Questions.Question_01.DifficultyAnswer_1 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										pause = false
+									else
+										TriggerServerEvent('esx_methcar:blow', pos.x, pos.y, pos.z)
+									end
+								elseif Questions.Question_01.DifficultyAnswer_1 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										pause = false
+									else
+										TriggerServerEvent('esx_methcar:blow', pos.x, pos.y, pos.z)
+									end
+								end
+							else
+								pause = false
+							end
+						end,
+						icon = 'tape'
+					},
+					{
+						title = Config.Locale.Question_01_Answer_2,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 2')
+							end
+							local pos = GetEntityCoords(PlayerPedId())
+							notifications(Config.Noti.error, Config.Locale.Question_01_Fail, Config.Noti.time)
+							TriggerServerEvent('esx_methcar:blow', pos.x, pos.y, pos.z)
+							SetVehicleEngineHealth(CurrentVehicle, 0.0)
+							quality = 0
+							started = false
+							displayed = false
+							ApplyDamageToPed(PlayerPedId(), 10, false)
+							if Config.Debug then
+								print('Stopped making Drugs')
+							end
+							lib.hideContext(true)
+						end,
+						icon = 'circle-pause'
+					},
+					{
+						title = Config.Locale.Question_01_Answer_3,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 3')
+							end
+							lib.hideContext(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_01.Enabled then
+								if Questions.Question_01.DifficultyAnswer_2 == 0 then
+									pause = false
+								elseif Questions.Question_01.DifficultyAnswer_2 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_01_Answer_3_1, Config.Noti.time)
+										quality = quality + 5
+                                        pause = false
+									else
+										TriggerServerEvent('esx_methcar:blow', pos.x, pos.y, pos.z)
+									end
+								elseif Questions.Question_01.DifficultyAnswer_2 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_01_Answer_3_1, Config.Noti.time)
+										quality = quality + 5
+                                        pause = false
+									else
+										TriggerServerEvent('esx_methcar:blow', pos.x, pos.y, pos.z)
+									end
+								end
+							else
+								pause = false
+							end
+						end,
+						icon = 'wrench'
+					},
+				},
+			})
+			
+			lib.registerContext({
+				id = 'Event_02',
+				title = Config.Locale.Question_02,
+				onExit = function()
+					Citizen.Wait(20)
+					TriggerEvent('esx_methcar:stop')
+				end,
+				options = {
+					{title = Config.Locale.Choose_Option, icon = 'question', description = Config.Locale.Update1 .. progress .. Config.Locale.Update2},
+					{
+						title = Config.Locale.Question_02_Answer_1,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 1')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_02.Enabled then
+								if Questions.Question_02.DifficultyAnswer_1 == 0 then
+									pause = false
+									quality = quality - 1
+								elseif Questions.Question_02.DifficultyAnswer_1 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										quality = quality - 1
+										notifications(Config.Noti.info, Config.Locale.Question_02_Answer_1_1, Config.Noti.time)
+										pause = false
+									else
+										TriggerEvent('esx_methcar:drugged')
+										pause = false
+									end
+								elseif Questions.Question_02.DifficultyAnswer_1 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										quality = quality - 1
+										notifications(Config.Noti.info, Config.Locale.Question_02_Answer_1_1, Config.Noti.time)
+										pause = false
+									else
+										TriggerEvent('esx_methcar:drugged')
+										pause = false
+									end
+								end
+							else
+								TriggerEvent('esx_methcar:drugged')
+								pause = false
+							end
+						end,
+						icon = 'window-maximize'
+					},
+					{
+						title = Config.Locale.Question_02_Answer_2,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 2')
+							end
+							notifications(Config.Noti.error, Config.Locale.Question_02_Answer_2_1, Config.Noti.time)
+							pause = false
+							TriggerEvent('esx_methcar:drugged')
+							lib.hideMenu(true)
+						end,
+						icon = 'circle-pause'
+					},
+					{
+						title = Config.Locale.Question_02_Answer_3,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 3')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_02.Enabled then
+								if Questions.Question_02.DifficultyAnswer_3 == 0 then
+									notifications(Config.Noti.succes, Config.Locale.Question_02_Answer_3_1, Config.Noti.time)
+									SetPedPropIndex(playerPed, 1, 26, 7, true)
+									pause = false
+								elseif Questions.Question_02.DifficultyAnswer_3 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.succes, Config.Locale.Question_02_Answer_3_1, Config.Noti.time)
+										SetPedPropIndex(playerPed, 1, 26, 7, true)
+										pause = false
+									else
+										TriggerEvent('esx_methcar:drugged')
+										pause = false
+									end
+								elseif Questions.Question_02.DifficultyAnswer_3 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.succes, Config.Locale.Question_02_Answer_3_1, Config.Noti.time)
+										SetPedPropIndex(playerPed, 1, 26, 7, true)
+										pause = false
+									else
+										TriggerEvent('esx_methcar:drugged')
+										pause = false
+									end
+								end
+							else
+								notifications(Config.Noti.succes, Config.Locale.Question_02_Answer_3_1, Config.Noti.time)
+								SetPedPropIndex(playerPed, 1, 26, 7, true)
+								pause = false
+							end
+						end,
+						icon = 'mask-ventilator'
+					},
+				},
+			})
+
+			lib.registerContext({
+				id = 'Event_03',
+				title = Config.Locale.Question_03,
+				onExit = function()
+					Citizen.Wait(20)
+					TriggerEvent('esx_methcar:stop')
+				end,
+				options = {
+					{title = Config.Locale.Choose_Option, icon = 'question', description = Config.Locale.Update1 .. progress .. Config.Locale.Update2},
+					{
+						title = Config.Locale.Question_03_Answer_1,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 1')
+							end
+							lib.hideMenu(true)
+							Citizen.Wait(20)
+							notifications(Config.Noti.error, Config.Locale.Question_03_Answer_1_1, Config.Noti.time)
+							pause = false
+						end,
+						icon = 'burn'
+					},
+					{
+						title = Config.Locale.Question_03_Answer_2,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 2')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_03.Enabled then
+								if Questions.Question_03.DifficultyAnswer_2 == 0 then
+									notifications(Config.Noti.success, Config.Locale.Question_03_Answer_2_1, Config.Noti.time)
+									quality = quality + 5
+									pause = false
+								elseif Questions.Question_03.DifficultyAnswer_2 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_03_Answer_2_1, Config.Noti.time)
+										quality = quality + 5
+										pause = false
+									else
+										pause = false
+									end
+								elseif Questions.Question_03.DifficultyAnswer_2 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_03_Answer_2_1, Config.Noti.time)
+										quality = quality + 5
+										pause = false
+									else
+										pause = false
+									end
+								end
+							else
+								notifications(Config.Noti.success, Config.Locale.Question_03_Answer_2_1, Config.Noti.time)
+								quality = quality + 5
+								pause = false
+							end
+						end,
+						icon = 'temperature-full'
+					},
+					{
+						title = Config.Locale.Question_03_Answer_3,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 3')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_03.Enabled then
+								if Questions.Question_03.DifficultyAnswer_3 == 0 then
+									notifications(Config.Noti.error, Config.Locale.Question_03_Answer_3_1, Config.Noti.time)
+									pause = false
+									quality = quality -4
+								elseif Questions.Question_03.DifficultyAnswer_3 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.error, Config.Locale.Question_03_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality -4
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_03_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality -4
+									end
+								elseif Questions.Question_03.DifficultyAnswer_3 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.error, Config.Locale.Question_03_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality -4
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_03_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality -4
+									end
+								end
+							else
+								notifications(Config.Noti.error, Config.Locale.Question_03_Answer_3_1, Config.Noti.time)
+								pause = false
+								quality = quality -4
+							end
+						end,
+						icon = 'temperature-quarter'
+					},
+				},
+			})
+
+			lib.registerContext({
+				id = 'Event_04',
+				title = Config.Locale.Question_04,
+				onExit = function()
+					Citizen.Wait(20)
+					TriggerEvent('esx_methcar:stop')
+				end,
+				options = {
+					{title = Config.Locale.Choose_Option, icon = 'question', description = Config.Locale.Update1 .. progress .. Config.Locale.Update2},
+					{
+						title = Config.Locale.Question_04_Answer_1,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 1')
+							end
+							notifications(Config.Noti.error, Config.Locale.Question_04_Answer_1_1, Config.Noti.time)
+							quality = quality - 3
+							pause = false
+						  	lib.hideMenu(true)
+						end,
+						icon = 'circle-pause'
+					},
+					{
+						title = Config.Locale.Question_04_Answer_2,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 2')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_04.Enabled then
+								if Questions.Question_04.DifficultyAnswer_2 == 0 then
+									notifications(Config.Noti.error, Config.Locale.Question_04_Answer_2_1, Config.Noti.time)
+									pause = false
+									quality = quality - 1
+								elseif Questions.Question_04.DifficultyAnswer_2 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.error, Config.Locale.Question_04_Answer_2_1, Config.Noti.time)
+										pause = false
+										quality = quality - 1
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_04_Answer_1_1, Config.Noti.time)
+										quality = quality - 3
+										pause = false
+									end
+								elseif Questions.Question_04.DifficultyAnswer_2 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.error, Config.Locale.Question_04_Answer_2_1, Config.Noti.time)
+										pause = false
+										quality = quality - 1
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_04_Answer_1_1, Config.Noti.time)
+										quality = quality - 3
+										pause = false
+									end
+								end
+							else
+								notifications(Config.Noti.error, Config.Locale.Question_04_Answer_2_1, Config.Noti.time)
+								pause = false
+								quality = quality - 1
+							end
+						end,
+						icon = 'syringe'
+					},
+					{
+						title = Config.Locale.Question_04_Answer_3,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 3')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_04.Enabled then
+								if Questions.Question_04.DifficultyAnswer_3 == 0 then
+									notifications(Config.Noti.success, Config.Locale.Question_04_Answer_3_1, Config.Noti.time)
+									pause = false
+									quality = quality + 3
+								elseif Questions.Question_04.DifficultyAnswer_3 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_04_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality + 3
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_04_Answer_1_1, Config.Noti.time)
+										quality = quality - 3
+										pause = false
+									end
+								elseif Questions.Question_04.DifficultyAnswer_3 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_04_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality + 3
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_04_Answer_1_1, Config.Noti.time)
+										quality = quality - 3
+										pause = false
+									end
+								end
+							else
+								notifications(Config.Noti.success, Config.Locale.Question_04_Answer_3_1, Config.Noti.time)
+								pause = false
+								quality = quality + 3
+							end
+						end,
+						icon = 'car-battery'
+					},
+				},
+			})
+
+			lib.registerContext({
+				id = 'Event_05',
+				title = Config.Locale.Question_05,
+				onExit = function()
+					Citizen.Wait(20)
+					TriggerEvent('esx_methcar:stop')
+				end,
+				options = {
+					{title = Config.Locale.Choose_Option, icon = 'question', description = Config.Locale.Update1 .. progress .. Config.Locale.Update2},
+					{
+						title = Config.Locale.Question_05_Answer_1,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 1')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_05.Enabled then
+								if Questions.Question_05.DifficultyAnswer_1 == 0 then
+									notifications(Config.Noti.success, Config.Locale.Question_05_Answer_1_1, Config.Noti.time)
+									quality = quality + 4
+									pause = false
+								elseif Questions.Question_05.DifficultyAnswer_1 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_05_Answer_1_1, Config.Noti.time)
+										quality = quality + 4
+										pause = false
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_05_Answer_1_2, Config.Noti.time)
+										pause = false
+									end
+								elseif Questions.Question_05.DifficultyAnswer_1 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_05_Answer_1_1, Config.Noti.time)
+										quality = quality + 4
+										pause = false
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_05_Answer_1_2, Config.Noti.time)
+										pause = false
+									end
+								end
+							else
+								notifications(Config.Noti.success, Config.Locale.Question_05_Answer_1_1, Config.Noti.time)
+								quality = quality + 4
+								pause = false
+							end
+						end,
+						icon = 'bottle-droplet'
+					},
+					{
+						title = Config.Locale.Question_05_Answer_2,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 2')
+							end
+							notifications(Config.Noti.info, Config.Locale.Question_05_Answer_2_1, Config.Noti.time)
+							pause = false
+							lib.hideMenu(true)
+						end,
+						icon = 'trash'
+					},
+					{
+						title = Config.Locale.Question_05_Answer_3,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 3')
+							end
+							notifications(Config.Noti.error, Config.Locale.Question_05_Answer_3_1, Config.Noti.time)
+							pause = false
+							lib.hideMenu(true)
+						end,
+						icon = 'bottle-droplet'
+					},
+				},
+			})
+
+			lib.registerContext({
+				id = 'Event_06',
+				title = Config.Locale.Question_06,
+				onExit = function()
+					Citizen.Wait(20)
+					TriggerEvent('esx_methcar:stop')
+				end,
+				options = {
+					{title = Config.Locale.Choose_Option, icon = 'question', description = Config.Locale.Update1 .. progress .. Config.Locale.Update2},
+					{
+						title = Config.Locale.Question_06_Answer_1,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 1')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_06.Enabled then
+								if Questions.Question_06.DifficultyAnswer_3 == 0 then
+									notifications(Config.Noti.error, Config.Locale.Question_06_Answer_1_1, Config.Noti.time)
+									pause = false
+								elseif Questions.Question_06.DifficultyAnswer_3 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.error, Config.Locale.Question_06_Answer_1_1, Config.Noti.time)
+										pause = false
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_06_Answer_1_2, Config.Noti.time)
+										quality = quality - 2
+										pause = false
+									end
+								elseif Questions.Question_06.DifficultyAnswer_3 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.error, Config.Locale.Question_06_Answer_1_1, Config.Noti.time)
+										pause = false
+									else
+										notifications(Config.Noti.error, Config.Locale.Question_06_Answer_1_2, Config.Noti.time)
+										quality = quality - 2
+										pause = false
+									end
+								end
+							else
+								notifications(Config.Noti.error, Config.Locale.Question_06_Answer_1_1, Config.Noti.time)
+								pause = false
+							end
+						end,
+						icon = 'spray-can'
+					},
+					{
+						title = Config.Locale.Question_06_Answer_2,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 2')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_06.Enabled then
+								if Questions.Question_06.DifficultyAnswer_1 == 0 then
+									notifications(Config.Noti.success, Config.Locale.Question_06_Answer_2_1, Config.Noti.time)
+									pause = false
+									quality = quality + 3
+								elseif Questions.Question_06.DifficultyAnswer_1 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_06_Answer_2_1, Config.Noti.time)
+										pause = false
+										quality = quality + 3
+									else
+										notifications(Config.Noti.success, Config.Locale.Question_06_Answer_2_2, Config.Noti.time)
+										pause = false
+									end
+								elseif Questions.Question_06.DifficultyAnswer_1 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_06_Answer_2_1, Config.Noti.time)
+										pause = false
+										quality = quality + 3
+									else
+										notifications(Config.Noti.success, Config.Locale.Question_06_Answer_2_2, Config.Noti.time)
+										pause = false
+									end
+								end
+							else
+								notifications(Config.Noti.success, Config.Locale.Question_06_Answer_2_1, Config.Noti.time)
+								pause = false
+								quality = quality + 3
+							end	
+						end,
+						icon = 'wrench'
+					},
+					{
+						title = Config.Locale.Question_06_Answer_3,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 3')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_06.Enabled then
+								if Questions.Question_06.DifficultyAnswer_1 == 0 then
+									notifications(Config.Noti.info, Config.Locale.Question_06_Answer_3_1, Config.Noti.time)
+									pause = false
+									quality = quality - 1
+								elseif Questions.Question_06.DifficultyAnswer_1 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.info, Config.Locale.Question_06_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality - 1
+									else
+										notifications(Config.Noti.info, Config.Locale.Question_06_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality - 1
+									end
+								elseif Questions.Question_06.DifficultyAnswer_1 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.info, Config.Locale.Question_06_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality - 1
+									else
+										notifications(Config.Noti.info, Config.Locale.Question_06_Answer_3_1, Config.Noti.time)
+										pause = false
+										quality = quality - 1
+									end
+								end
+							else
+								notifications(Config.Noti.info, Config.Locale.Question_06_Answer_3_1, Config.Noti.time)
+								pause = false
+								quality = quality - 1
+							end
+						end,
+						icon = 'wrench'
+					},
+				},
+			})
+
+			lib.registerContext({
+				id = 'Event_07',
+				title = Config.Locale.Question_07,
+				onExit = function()
+					Citizen.Wait(20)
+					TriggerEvent('esx_methcar:stop')
+				end,
+				options = {
+					{title = Config.Locale.Choose_Option, icon = 'question', description = Config.Locale.Update1 .. progress .. Config.Locale.Update2},
+					{
+						title = Config.Locale.Question_07_Answer_1,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 1')
+							end
+							notifications(Config.Noti.success, Config.Locale.Question_07_Answer_1_1, Config.Noti.time)
+							quality = quality + 1
+							pause = false
+						  lib.hideMenu(true)
+						end,
+						icon = 'face-grimace'
+					},
+					{
+						title = Config.Locale.Question_07_Answer_2,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 2')
+							end
+							notifications(Config.Noti.error, Config.Locale.Question_07_Answer_2_1, Config.Noti.time)
+							pause = false
+							quality = quality - 2
+							lib.hideMenu(true)
+						end,
+						icon = 'tree'
+					},
+					{
+						title = Config.Locale.Question_07_Answer_3,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 3')
+							end
+							notifications(Config.Noti.error, Config.Locale.Question_07_Answer_3_1, Config.Noti.time)
+							pause = false
+							quality = quality - 1
+							lib.hideMenu(true)
+						end,
+						icon = 'chair'
+					},
+				},
+			})
+
+			lib.registerContext({
+				id = 'Event_08',
+				title = Config.Locale.Question_08,
+				onExit = function()
+					Citizen.Wait(20)
+					TriggerEvent('esx_methcar:stop')
+				end,
+				options = {
+					{title = Config.Locale.Choose_Option, icon = 'question', description = Config.Locale.Update1 .. progress .. Config.Locale.Update2},
+					{
+						title = Config.Locale.Question_08_Answer_1,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 1')
+							end
+							lib.hideMenu(true)
+
+							Citizen.Wait(20)
+							local Questions = Config.SkillCheck.Questions
+
+							if not Questions.DisableAll and Questions.Question_08.Enabled then
+								if Questions.Question_08.DifficultyAnswer_1 == 0 then
+									notifications(Config.Noti.success, Config.Locale.Question_08_Answer_1_1, Config.Noti.time)
+									quality = quality + 1
+									pause = false
+								elseif Questions.Question_08.DifficultyAnswer_1 == 1 then
+									local success = lib.skillCheck(Questions.Difficulty_1.Difficulty, Questions.Difficulty_1.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_08_Answer_1_1, Config.Noti.time)
+										quality = quality + 1
+										pause = false
+									else
+										notifications(Config.Noti.sucess, Config.Locale.Question_08_Answer_2_1, Config.Noti.time)
+										pause = false
+										quality = quality + 1
+									end
+								elseif Questions.Question_08.DifficultyAnswer_1 == 2 then
+									local success = lib.skillCheck(Questions.Difficulty_2.Difficulty, Questions.Difficulty_2.Key)
+									if success then
+										notifications(Config.Noti.success, Config.Locale.Question_08_Answer_1_1, Config.Noti.time)
+										quality = quality + 1
+										pause = false
+									else
+										notifications(Config.Noti.sucess, Config.Locale.Question_08_Answer_2_1, Config.Noti.time)
+										pause = false
+										quality = quality + 1
+									end
+								end
+							else
+								notifications(Config.Noti.success, Config.Locale.Question_08_Answer_1_1, Config.Noti.time)
+								quality = quality + 1
+								pause = false
+							end
+						end,
+						icon = 'wine-glass-empty'
+					},
+					{
+						title = Config.Locale.Question_08_Answer_2,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 2')
+							end
+							lib.hideMenu(true)
+
+							notifications(Config.Noti.sucess, Config.Locale.Question_08_Answer_2_1, Config.Noti.time)
+							pause = false
+							quality = quality + 1
+							
+						end,
+						icon = 'flask'
+					},
+					{
+						title = Config.Locale.Question_08_Answer_3,
+						onSelect = function(args)
+							if Config.Debug then
+								print('Pressed 3')
+							end
+							notifications(Config.Noti.error, Config.Locale.Question_08_Answer_3_1, Config.Noti.time)
+							pause = false
+							quality = quality - 1
+							lib.hideMenu(true)
+						end,
+						icon = 'wine-glass-empty'
+					},
+				},
+			})
+
+			if progress < 96 then
+				Citizen.Wait(Config.PauseTime)
+				if not pause and IsPedInAnyVehicle(playerPed) then
+					local percent = math.random(Config.Progress.Min, Config.Progress.Max)
+					progress = progress +  percent
+					notifications(Config.Noti.info, Config.Locale.Update1 .. progress .. Config.Locale.Update2, Config.Noti.time)
+
+					MiniGamePercentage = math.random(1, Config.ChangeMiniGame)
+					if Config.Debug then
+						print(MiniGamePercentage)
 					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~The tape kinda stopped the leak')
-						quality = quality - 3
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~The propane tank blew up, you messed up...')
-						TriggerServerEvent('esx_methcar:blow', pos.x, pos.y, pos.z)
-						SetVehicleEngineHealth(CurrentVehicle, 0.0)
-						quality = 0
-						started = false
-						displayed = false
-						ApplyDamageToPed(GetPlayerPed(-1), 10, false)
-						print('Stopped making drugs')
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~Good job, the pipe wasnt in a good condition')
-						pause = false
-						quality = quality + 5
-					end
+					MenuOpen = false
+					Citizen.Wait(Config.PauseTime) 
 				end
-				--
-				--   EVENT 5
-				--
-				if progress > 30 and progress < 32 then
+			
+
+				if progress > 10 and MiniGamePercentage == 1 and not MenuOpen then
+					MenuOpen = true
 					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~You spilled a bottle of acetone on the ground, what do you do?')	
-						ESX.ShowNotification('~o~1. Open the windows to get rid of the smell')
-						ESX.ShowNotification('~o~2. Leave it be')
-						ESX.ShowNotification('~o~3. Put on a mask with airfilter')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~You opened the windows to get rid of the smell')
-						quality = quality - 1
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~You got high from inhaling acetone too much')
-						pause = false
-						TriggerEvent('esx_methcar:drugged')
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~Thats an easy way to fix the issue.. I guess')
-						SetPedPropIndex(playerPed, 1, 26, 7, true)
-						pause = false
-					end
+
+					local Minigame = math.random(1, 8)
+
+					lib.showContext('Event_0'..Minigame)
+
 				end
-				--
-				--   EVENT 2
-				--
-				if progress > 38 and progress < 40 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~Meth becomes solid too fast, what do you do? ')	
-						ESX.ShowNotification('~o~1. Raise the pressure')
-						ESX.ShowNotification('~o~2. Raise the temperature')
-						ESX.ShowNotification('~o~3. Lower the pressure')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~You raised the pressure and the propane started escaping, you lowered it and its okay for now')
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~Raising the temperature helped...')
-						quality = quality + 5
-						pause = false
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~Lowering the pressure just made it worse...')
-						pause = false
-						quality = quality -4
-					end
-				end
-				--
-				--   EVENT 8 - 3
-				--
-				if progress > 41 and progress < 43 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~You accidentally pour too much acetone, what do you do?')	
-						ESX.ShowNotification('~o~1. Do nothing')
-						ESX.ShowNotification('~o~2. Try to sucking it out using syringe')
-						ESX.ShowNotification('~o~3. Add more lithium to balance it out')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~The meth is not smelling like acetone a lot')
-						quality = quality - 3
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~It kind of worked but its still too much')
-						pause = false
-						quality = quality - 1
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~You successfully balanced both chemicals out and its good again')
-						pause = false
-						quality = quality + 3
-					end
-				end
-				--
-				--   EVENT 3
-				--
-				if progress > 46 and progress < 49 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~You found some water coloring, what do you do?')	
-						ESX.ShowNotification('~o~1. Add it in')
-						ESX.ShowNotification('~o~2. Put it away')
-						ESX.ShowNotification('~o~3. Drink it')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~Good idea, people like colors')
-						quality = quality + 4
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~Yeah it might destroy the taste of meth')
-						pause = false
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~You are a bit weird and feel dizzy but its all good')
-						pause = false
-					end
-				end
-				--
-				--   EVENT 4
-				--
-				if progress > 55 and progress < 58 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~The filter is clogged, what do you do?')	
-						ESX.ShowNotification('~o~1. Clean it using compressed air')
-						ESX.ShowNotification('~o~2. Replace the filter')
-						ESX.ShowNotification('~o~3. Clean it using a tooth brush')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~Compressed air sprayed the liquid meth all over you')
-						quality = quality - 2
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~Replacing it was probably the best option')
-						pause = false
-						quality = quality + 3
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~This worked quite well but its still kinda dirty')
-						pause = false
-						quality = quality - 1
-					end
-				end
-				--
-				--   EVENT 5
-				--
-				if progress > 58 and progress < 60 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~You spilled a bottle of acetone on the ground, what do you do?')	
-						ESX.ShowNotification('~o~1. Open the windows to get rid of the smell')
-						ESX.ShowNotification('~o~2. Leave it be')
-						ESX.ShowNotification('~o~3. Put on a mask with airfilter')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~You opened the windows to get rid of the smell')
-						quality = quality - 1
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~You got high from inhaling acetone too much')
-						pause = false
-						TriggerEvent('esx_methcar:drugged')
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~Thats an easy way to fix the issue.. I guess')
-						SetPedPropIndex(playerPed, 1, 26, 7, true)
-						pause = false
-					end
-				end
-				--
-				--   EVENT 1 - 6
-				--
-				if progress > 63 and progress < 65 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~The propane pipe is leaking, what do you do?')	
-						ESX.ShowNotification('~o~1. Fix using tape')
-						ESX.ShowNotification('~o~2. Leave it be ')
-						ESX.ShowNotification('~o~3. Replace it')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~The tape kinda stopped the leak')
-						quality = quality - 3
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~The propane tank blew up, you messed up...')
-						TriggerServerEvent('esx_methcar:blow', pos.x, pos.y, pos.z)
-						SetVehicleEngineHealth(CurrentVehicle, 0.0)
-						quality = 0
-						started = false
-						displayed = false
-						ApplyDamageToPed(GetPlayerPed(-1), 10, false)
-						print('Stopped making drugs')
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~Good job, the pipe wasnt in a good condition')
-						pause = false
-						quality = quality + 5
-					end
-				end
-				--
-				--   EVENT 4 - 7
-				--
-				if progress > 71 and progress < 73 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~The filter is clogged, what do you do?')	
-						ESX.ShowNotification('~o~1. Clean it using compressed air')
-						ESX.ShowNotification('~o~2. Replace the filter')
-						ESX.ShowNotification('~o~3. Clean it using a tooth brush')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~Compressed air sprayed the liquid meth all over you')
-						quality = quality - 2
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~Replacing it was probably the best option')
-						pause = false
-						quality = quality + 3
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~This worked quite well but its still kinda dirty')
-						pause = false
-						quality = quality - 1
-					end
-				end
-				--
-				--   EVENT 8
-				--
-				if progress > 76 and progress < 78 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~You accidentally pour too much acetone, what do you do?')	
-						ESX.ShowNotification('~o~1. Do nothing')
-						ESX.ShowNotification('~o~2. Try to sucking it out using syringe')
-						ESX.ShowNotification('~o~3. Add more lithium to balance it out')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~The meth is not smelling like acetone a lot')
-						quality = quality - 3
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~It kind of worked but its still too much')
-						pause = false
-						quality = quality - 1
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~You successfully balanced both chemicals out and its good again')
-						pause = false
-						quality = quality + 3
-					end
-				end
-				--
-				--   EVENT 9
-				--
-				if progress > 82 and progress < 84 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~You need to take a shit, what do you do?')	
-						ESX.ShowNotification('~o~1. Try to hold it')
-						ESX.ShowNotification('~o~2. Go outside and take a shit')
-						ESX.ShowNotification('~o~3. Shit inside')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~Good job, you need to work first, shit later')
-						quality = quality + 1
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~While you were outside the glass fell off the table and spilled all over the floor...')
-						pause = false
-						quality = quality - 2
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~The air smells like shit now, the meth smells like shit now')
-						pause = false
-						quality = quality - 1
-					end
-				end
-				--
-				--   EVENT 10
-				--
-				if progress > 88 and progress < 90 then
-					pause = true
-					if selection == 0 then
-						ESX.ShowNotification('~o~Do you add some glass pieces to the meth so it looks like you have more of it?')	
-						ESX.ShowNotification('~o~1. Yes!')
-						ESX.ShowNotification('~o~2. No')
-						ESX.ShowNotification('~o~3. What if I add meth to glass instead?')
-						ESX.ShowNotification('~c~Press the number of the option you want to do')
-					end
-					if selection == 1 then
-						print("Slected 1")
-						ESX.ShowNotification('~r~Now you got few more baggies out of it')
-						quality = quality + 1
-						pause = false
-					end
-					if selection == 2 then
-						print("Slected 2")
-						ESX.ShowNotification('~r~You are a good drug maker, your product is high quality')
-						pause = false
-						quality = quality + 1
-					end
-					if selection == 3 then
-						print("Slected 3")
-						ESX.ShowNotification('~r~Thats a bit too much, its more glass than meth but ok')
-						pause = false
-						quality = quality - 1
-					end
-				end
-				
-				
-				
-				
-				
-				
-				
 				if IsPedInAnyVehicle(playerPed) then
 					TriggerServerEvent('esx_methcar:make', pos.x,pos.y,pos.z)
 					if pause == false then
-						selection = 0
 						quality = quality + 1
 						progress = progress +  math.random(1, 2)
-						ESX.ShowNotification('~r~Meth production: ~g~~h~' .. progress .. '%')
+						notifications(Config.Noti.info, Config.Locale.Update1 .. progress .. Config.Locale.Update2, Config.Noti.time)
 					end
 				else
 					TriggerEvent('esx_methcar:stop')
 				end
-
 			else
 				TriggerEvent('esx_methcar:stop')
 				progress = 100
-				ESX.ShowNotification('~r~Meth production: ~g~~h~' .. progress .. '%')
-				ESX.ShowNotification('~g~~h~Production finished')
+				notifications(Config.Noti.info, Config.Locale.Update1 .. progress .. Config.Locale.Update2, Config.Noti.time)
+				notifications(Config.Noti.success, Config.Locale.Production_Finish, Config.Noti.time)
 				TriggerServerEvent('esx_methcar:finish', quality)
 				FreezeEntityPosition(LastCar, false)
 			end	
-			
 		end
-		
 	end
 end)
+
 Citizen.CreateThread(function()
 	while true do
 		Citizen.Wait(1000)
-			if IsPedInAnyVehicle(GetPlayerPed(-1)) then
-			else
-				if started then
+			if not IsPedInAnyVehicle(PlayerPedId()) then
+				local LastVehicle = GetVehiclePedIsIn(PlayerPedId(), true)
+				if Config.Debug and not LastVehicleLog then
+					LastVehicleLog = ESX.SetTimeout(5000, function()
+						print("Last Vehicle: "..LastVehicle)
+						LastVehicleLog = false
+					end)
+				end
+				if LastVehicle == 35842 and lib.isTextUIOpen() then
+					ResetPedLastVehicle(PlayerPedId())
+					lib.hideTextUI()
 					started = false
 					displayed = false
 					TriggerEvent('esx_methcar:stop')
-					print('Stopped making drugs')
-					FreezeEntityPosition(LastCar,false)
-				end		
+				else
+					if started then
+						lib.hideTextUI()
+						started = false
+						displayed = false
+						TriggerEvent('esx_methcar:stop')
+						if Config.Debug then
+							print('Stopped Making drugs')
+						end
+					end		
+				end
 			end
 	end
-
 end)
-
-Citizen.CreateThread(function()
-	while true do
-		Citizen.Wait(10)		
-		if pause == true then
-			if IsControlJustReleased(0, Keys['1']) then
-				selection = 1
-				ESX.ShowNotification('~g~Selected option number 1')
-			end
-			if IsControlJustReleased(0, Keys['2']) then
-				selection = 2
-				ESX.ShowNotification('~g~Selected option number 2')
-			end
-			if IsControlJustReleased(0, Keys['3']) then
-				selection = 3
-				ESX.ShowNotification('~g~Selected option number 3')
-			end
-		end
-
-	end
-end)
-
 
 
 
