@@ -11,12 +11,11 @@ Items db:
 
 =================/
 
-This is an very old script I've made probably back in October of 2018 and haven't published it since
-It's not as optimized nor does it use OOP but still works fine and doesn't cause any fps drops what so ever.
-Good luck using it, I can answer simple questions about it but won't deliver constant support.
+Install
 
-Feel free to upgrade this resource and change stuff up, if you want to publish it make sure you-
-always link to the original resource and give me credit
-
-Twitter: @KuzkayDev
-Youtube: Kuzkay
+1. Change the config for your needs
+2. Put the script in your Resource folder
+3. Add the items from the Config into your database/inventory
+4. Add to your Server.cfg: ensure unr3al_meth
+    Make sure its started behind es_extended, ox_lib and your inventory
+5. Restart the server
