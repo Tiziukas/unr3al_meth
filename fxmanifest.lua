@@ -3,21 +3,21 @@ game 'gta5'
 lua54 'yes'
 
 author '1OSaft'
-description '[BETA] Reworked Methcar from Kuzkay'
-version '1.0.0'
+description 'Reworked Methcar from Kuzkay'
+version '1.0.2'
 
 dependencies {'es_extended', 'ox_lib'}
 
-
 shared_scripts {
+    '@es_extended/imports.lua',
     '@ox_lib/init.lua',
     'config.lua',
-    'Locales.lua'
+    'locales/*.lua',
 }
 client_scripts {
-    'client.lua',
+    'client/client.lua'
 }
 server_scripts {
-    'server.lua',
-    'logs/config.log.lua',
+    'server/server.lua',
+    'logs/config.log.lua'
 }

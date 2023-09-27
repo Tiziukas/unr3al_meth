@@ -1,11 +1,32 @@
-Config = {}
-
+Config, Locales = {}, {}
+----------------------------------------------------------------
+Config.Locale = 'de'
+Config.VersionChecker = true --WIP
 Config.Debug = true
+----------------------------------------------------------------
 
---WIP Doesnt work atm
-Config.Inventory = 'ox_iventory' --valid options are 'ox_inventory' or 'esx' this used to get the max player weight
---WIP Doesnt work atm
-Config.LogType = 'discord' --Valid options are 'ox_lib' or 'discord'
+Config.Inventory = {
+    Type = 'ox_inventory',   --valid options are 'ox_inventory' or 'esx' this used for functions and the way items get added when max weight is reached
+
+    ForceAdd = false, --Should the meth alsways be added, including when the player cant carry it?
+
+    --Only works with ox_inventory
+    oxSplit = true, -- if true, the player receives the amount of meth he can carry
+}
+
+Config.Item = {
+    Meth = 'meth',
+    Acetone = 'acetone',
+    Lithium = 'lithium',
+    Methlab = 'methlab',
+
+    Chance = { -- At the End a random amount of Meth gets added to the quantity received by questions
+        Min = -5,
+        Max = 5
+    }
+}
+
+Config.LogType = 'discord' --Valid options are 'ox_lib', 'discord' or 'disabled'
 
 Config.StartKey = 'G'
 
@@ -19,38 +40,14 @@ Config.Progress = {         -- % every update gets added
 Config.ChangeMiniGame = 3           -- 1 out of 3 Progress updates gets a random minigame
 
 
-
 Config.Police                     = 'police'            -- Your Police society name
 Config.PoliceCount                = 0
-
-
-
-
-
 
 
 Config.SmokeColor = 'white' --orange, white or black
 
 
-Config.Item = {
-    Meth = 'meth',
-    MethWeight = 0.5, --Number is in Kg
-
-    Acetone = 'acetone',
-    Lithium = 'lithium',
-
-    Chance = { -- At the End a random amount of Meth gets added to the quantity received by questions
-        Min = -5,
-        Max = 5
-    }
-}
-
-
-
-
-
-
-
+Config.DrugEffectLengh = 300000
 
 Config.SkillCheck = {
     StartingProd = {

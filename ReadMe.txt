@@ -1,4 +1,4 @@
-Script made by Kuzkay and edited by 1OSaft
+Script made by Kuzkay
 
 Items db:
 -Acetone
@@ -11,4 +11,12 @@ Items db:
 
 =================/
 
-This is an old script that im currently updating to todays standards
+This is an very old script I've made probably back in October of 2018 and haven't published it since
+It's not as optimized nor does it use OOP but still works fine and doesn't cause any fps drops what so ever.
+Good luck using it, I can answer simple questions about it but won't deliver constant support.
+
+Feel free to upgrade this resource and change stuff up, if you want to publish it make sure you-
+always link to the original resource and give me credit
+
+Twitter: @KuzkayDev
+Youtube: Kuzkay
