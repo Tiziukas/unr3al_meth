@@ -1,6 +1,6 @@
 Config, Locales = {}, {}
 ----------------------------------------------------------------
-Config.Locale = 'de'
+Config.Locale = 'en'
 Config.VersionChecker = true --WIP
 Config.Debug = true
 ----------------------------------------------------------------
@@ -41,10 +41,10 @@ Config.ChangeMiniGame = 3           -- 1 out of 3 Progress updates gets a random
 
 
 Config.Police                     = 'police'            -- Your Police society name
-Config.PoliceCount                = 0
+Config.PoliceCount                = 1
 
 
-Config.SmokeColor = 'white' --orange, white or black
+Config.SmokeColor = 'orange' --orange, white or black
 
 
 Config.DrugEffectLengh = 300000
@@ -53,7 +53,7 @@ Config.SkillCheck = {
     StartingProd = {
         Enabled = true,
         Difficulty = {'easy', 'easy'},
-        Key = 'e' --You can add multiple with {'w', 'a', 's', 'd'}
+        Key = {'e'} --You can add multiple with {'w', 'a', 's', 'd'}
     },
 
     Questions = {
@@ -62,11 +62,11 @@ Config.SkillCheck = {
         --Diffuclty 0 is no Skillcheck
         Difficulty_1 = {
             Difficulty = {'easy', 'easy'},
-            Key = 'e' --You can add multiple with {'w', 'a', 's', 'd'}
+            Key = {'e'} --You can add multiple with {'w', 'a', 's', 'd'}
         },
         Difficulty_2 = {
             Difficulty = {'medium', 'medium'},
-            Key = 'e' --You can add multiple with {'w', 'a', 's', 'd'}
+            Key = {'e'} --You can add multiple with {'w', 'a', 's', 'd'}
         },
 
 
@@ -119,7 +119,6 @@ Config.SkillCheck = {
 
 
 Config.Noti = {
-
     --Notifications types:
     success = 'success',
     error = 'error',
