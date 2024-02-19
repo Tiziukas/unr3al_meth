@@ -11,7 +11,7 @@ Config.Inventory = {
     ForceAdd = false, --Should the meth alsways be added, including when the player cant carry it?
 
     --Only works with ox_inventory
-    oxSplit = true, -- if true, the player receives the amount of meth he can carry
+    oxSplit = true, -- if true, the player only receives the amount he can carry
 }
 
 Config.Item = {
@@ -41,7 +41,7 @@ Config.ChangeMiniGame = 3           -- 1 out of 3 Progress updates gets a random
 
 
 Config.Police                     = 'police'            -- Your Police society name
-Config.PoliceCount                = 1
+Config.PoliceCount                = 0
 
 
 Config.SmokeColor = 'orange' --orange, white or black
