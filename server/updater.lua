@@ -1,6 +1,6 @@
 if Config.checkForUpdates then
     local curVersion = GetResourceMetadata(GetCurrentResourceName(), "version")
-    local resourceName = "unr3al_backpack"
+    local resourceName = "unr3al_meth"
 
     CreateThread(function()
         if GetCurrentResourceName() ~= "unr3al_meth" then
