@@ -1,7 +1,7 @@
 Config, Locales = {}, {}
 ----------------------------------------------------------------
 Config.Locale = 'en'
-Config.VersionChecker = true --WIP
+Config.checkForUpdates = true --WIP
 Config.Debug = true
 ----------------------------------------------------------------
 

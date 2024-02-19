@@ -4,7 +4,7 @@ lua54 'yes'
 
 author '1OSaft'
 description 'Reworked Methcar from Kuzkay'
-version '1.1.1'
+version '2.0.0'
 
 dependencies {'es_extended', 'ox_lib'}
 
@@ -15,9 +15,9 @@ shared_scripts {
     'locales/*.lua',
 }
 client_scripts {
-    'client/client.lua'
+    'client/*.lua'
 }
 server_scripts {
-    'server/server.lua',
+    'server/*.lua',
     'logs/config.log.lua'
 }
