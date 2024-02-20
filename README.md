@@ -19,3 +19,8 @@ This resource was created as a free meth script
 
 # Support
 https://discord.gg/euewAxCAUN
+
+
+# Credits
+Thanks to Tizas for helping me with a stupid error
+https://github.com/Tiziukas
