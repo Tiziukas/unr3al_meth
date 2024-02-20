@@ -12,8 +12,8 @@ local Keys = {
 
 local CurrentVehicle, LastCar
 local progress, quality = 0, 0
-local started, displayed, pause, posLog, CurrentVehicleLog, carLog, LastCarLog, modelLog, modelNameLog, LastVehicleLog = false, false, false, false, false, false, false, false, false, false
-local smokeC = nil
+local started, displayed, pause, posLog, CurrentVehicleLog, carLog, LastCarLog, modelLog, modelNameLog, LastVehicleLog, smokeC, smoke = false, false, false, false, false, false, false, false, false, false, nil, nil
+local smokecolour = ""
 
 local PlayerState = LocalPlayer.state
 PlayerState:set('Cooking', false)
@@ -109,8 +109,6 @@ end)
 
 RegisterNetEvent('esx_methcar:smoke')
 AddEventHandler('esx_methcar:smoke', function(posx, posy, posz, type)
---[[
-	local smokeC
 	if type == 'a' then
 
 		if not HasNamedPtfxAssetLoaded("core") then
@@ -120,34 +118,16 @@ AddEventHandler('esx_methcar:smoke', function(posx, posy, posz, type)
 			end
 		end
 		SetPtfxAssetNextCall("core")
-		if Config.SmokeColor == 'white' then
-			smokeC = StartParticleFxLoopedAtCoord("ent_amb_smoke_foundry_white", posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
+        	if Config.SmokeColor == 'white' then
+			smokecolour = "ent_amb_smoke_foundry_white"
 		end
 		if Config.SmokeColor == 'orange' then
-			smokeC = StartParticleFxLoopedAtCoord("exp_grd_flare", posx, posy, posz + 1.5, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
+			smokecolour = "exp_grd_flare"
 		end
 		if Config.SmokeColor == 'black' then
-			smokeC = StartParticleFxLoopedAtCoord("ent_amb_smoke_foundry ", posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
+			smokecolour = "ent_amb_smoke_foundry"
 		end
-		SetParticleFxLoopedAlpha(smokeC, 0.8)
-
-		SetParticleFxLoopedColour(smokeC, 0.0, 0.0, 0.0, 0)
-	else
-
-		StopParticleFxLooped(smokeC, 0)
-	end
-	--]]
-	if type == 'a' then
-
-		if not HasNamedPtfxAssetLoaded("core") then
-			RequestNamedPtfxAsset("core")
-			while not HasNamedPtfxAssetLoaded("core") do
-				Citizen.Wait(1)
-			end
-		end
-		SetPtfxAssetNextCall("core")
-		local smoke = StartParticleFxLoopedAtCoord("exp_grd_flare", posx, posy, posz + 1.7, 0.0, 0.0, 0.0, 2.0, 0, 0, 0, 0)
-
+        	local smoke = StartParticleFxLoopedAtCoord(smokecolour, posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
 		--GRAPHICS::START_PARTICLE_FX_LOOPED_AT_COORD("scr_fbi_falling_debris", 93.7743f, -749.4572f, 70.86904f, 0f, 0f, 0f, 0x3F800000, 0, 0, 0, 0)  
 		SetParticleFxLoopedAlpha(smoke, 0.8)
 		SetParticleFxLoopedColour(smoke, 0.0, 0.0, 0.0, 0)
