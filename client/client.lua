@@ -18,7 +18,30 @@ local smokecolour = ""
 local PlayerState = LocalPlayer.state
 PlayerState:set('Cooking', false)
 
-
+function toggleCam(bool)
+    if bool then
+        local coords = GetEntityCoords(cache.ped)
+        local x, y, z = coords.x + GetEntityForwardX(cache.ped) * 0.9, coords.y + GetEntityForwardY(cache.ped) * 0.9, coords.z + 0.92
+        local rot = GetEntityRotation(cache.ped, 2)
+        local camRotation = rot + vector3(0.0, 0.0, 175.0)
+        cam = CreateCamWithParams("DEFAULT_SCRIPTED_CAMERA", x, y, z, camRotation, 70.0)
+        SetCamActive(cam, true)
+        RenderScriptCams(true, true, 1000, 1, 1)
+    else
+        if cam then
+            RenderScriptCams(false, true, 0, true, false)
+            DestroyCam(cam, false)
+            cam = nil
+        end
+    end
+end
+--Soon to be implemented
+function playerAnim(dict,clip)
+	local player = PlayerPedId()
+	lib.requestAnimDict(dict, 500)
+	TaskPlayAnim(player, dict, clip, 1.0, 1.0, -1, 8, -1, true, true, true)
+	RemoveAnimDict(dict)
+end
 
 function DisplayHelpText(str)
 	SetTextComponentFormat("STRING")
@@ -29,7 +52,7 @@ end
 RegisterNetEvent('esx_methcar:stop')
 AddEventHandler('esx_methcar:stop', function()
 	PlayerState:set('Cooking', false)
-
+	toggleCam(false)
 	DisplayHelpText(Locales[Config.Locale]['Production_Stoped'])
 	FreezeEntityPosition(LastCar, false)
 	StopParticleFxLooped(smokeC, 0)
@@ -54,7 +77,7 @@ AddEventHandler('esx_methcar:startprod', function()
 	SetVehicleDoorOpen(CurrentVehicle, 2)
 
 	if Config.SkillCheck.StartingProd.Enabled then
-		Citizen.Wait(1500)
+		Wait(1500)
 		local success = lib.skillCheck(Config.SkillCheck.StartingProd.Difficulty, Config.SkillCheck.StartingProd.Key)
 
 		if success then
@@ -65,11 +88,12 @@ AddEventHandler('esx_methcar:startprod', function()
 			if Config.Debug then print('Started Meth production') end
 			
 			notifications(Config.Noti.success, Locales[Config.Locale]['Production_Started'], Config.Noti.time)
+			toggleCam(true)
 		else
 			lib.hideTextUI()
 
 			notifications(Config.Noti.error, Locales[Config.Locale]['Failed_Start'], Config.Noti.time)
-			Citizen.Wait(1000)
+			Wait(1000)
 			local pos = GetEntityCoords(PlayerPedId())
 			TriggerServerEvent('esx_methcar:blow', pos.x, pos.y, pos.z)
 
@@ -87,21 +111,23 @@ end)
 
 RegisterNetEvent('esx_methcar:blowup')
 AddEventHandler('esx_methcar:blowup', function(posx, posy, posz)
+	toggleCam(false)
+	Wait(1500)
 	AddExplosion(posx, posy, posz + 2,23, 20.0, true, false, 1.0, true)
 	SetVehicleEngineHealth(car, -4000)
 	TriggerEvent('esx_methcar:stop')
 	if not HasNamedPtfxAssetLoaded("core") then
 		RequestNamedPtfxAsset("core")
 		while not HasNamedPtfxAssetLoaded("core") do
-			Citizen.Wait(1)
+			Wait(1)
 		end
 	end
 	SetPtfxAssetNextCall("core")
 	local fire = StartParticleFxLoopedAtCoord("ent_ray_heli_aprtmnt_l_fire", posx, posy, posz-0.8 , 0.0, 0.0, 0.0, 0.8, false, false, false, false)
-	Citizen.Wait(5000)
+	Wait(5000)
 
 	StopParticleFxLooped(smokeC, 0)
-	Citizen.Wait(6000)
+	Wait(6000)
 
 	StopParticleFxLooped(fire, 0)
 	
@@ -114,7 +140,7 @@ AddEventHandler('esx_methcar:smoke', function(posx, posy, posz, type)
 		if not HasNamedPtfxAssetLoaded("core") then
 			RequestNamedPtfxAsset("core")
 			while not HasNamedPtfxAssetLoaded("core") do
-				Citizen.Wait(1)
+				Wait(1)
 			end
 		end
 		SetPtfxAssetNextCall("core")
@@ -127,11 +153,10 @@ AddEventHandler('esx_methcar:smoke', function(posx, posy, posz, type)
 		if Config.SmokeColor == 'black' then
 			smokecolour = "ent_amb_smoke_foundry"
 		end
-        	local smoke = StartParticleFxLoopedAtCoord(smokecolour, posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
-		--GRAPHICS::START_PARTICLE_FX_LOOPED_AT_COORD("scr_fbi_falling_debris", 93.7743f, -749.4572f, 70.86904f, 0f, 0f, 0f, 0x3F800000, 0, 0, 0, 0)  
+    local smoke = StartParticleFxLoopedAtCoord(smokecolour, posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
 		SetParticleFxLoopedAlpha(smoke, 0.8)
 		SetParticleFxLoopedColour(smoke, 0.0, 0.0, 0.0, 0)
-		Citizen.Wait(20000)
+		Wait(20000)
 		StopParticleFxLooped(smoke, 0)
 	else
 		StopParticleFxLooped(smoke, 0)
@@ -146,7 +171,7 @@ AddEventHandler('esx_methcar:drugged', function()
 	SetPedMovementClipset(PlayerPedId(), "MOVE_M@DRUNK@SLIGHTLYDRUNK", true)
 	SetPedIsDrunk(PlayerPedId(), true)
 
-	Citizen.Wait(Config.DrugEffectLengh)
+	Wait(Config.DrugEffectLengh)
 	ClearTimecycleModifier()
 end)
 
@@ -251,45 +276,13 @@ AddEventHandler('esx_methcar:production', function()
 	end
 end)
 
---[[
-Citizen.CreateThread(function()
-	while true do
-		Citizen.Wait(1000)
-			if GetVehiclePedIsIn(PlayerPedId(), false) == 0 then
-				local LastVehicle = GetVehiclePedIsIn(PlayerPedId(), true)
-				if Config.Debug and not LastVehicleLog then
-					LastVehicleLog = ESX.SetTimeout(50, function()
-						print("Last Vehicle: "..LastVehicle)
-						LastVehicleLog = false
-					end)
-				end
-				if LastVehicle == 35842 and lib.isTextUIOpen() then
-					ResetPedLastVehicle(PlayerPedId())
-					lib.hideTextUI()
-					started = false
-					displayed = false
-					TriggerEvent('esx_methcar:stop')
-				else
-					if started then
-						lib.hideTextUI()
-						started = false
-						displayed = false
-						TriggerEvent('esx_methcar:stop')
-						if Config.Debug then print('Stopped Making drugs') end
-					end		
-				end
-			else
-			end
-	end
-end)
---]]
 RegisterNetEvent('esx_methcar:Context1')
 AddEventHandler('esx_methcar:Context1', function()
 	lib.registerContext({
 		id = 'Event_01',
 		title = Locales[Config.Locale]['Question_01'],
 		onExit = function()
-			Citizen.Wait(20)
+			Wait(20)
 			TriggerEvent('esx_methcar:stop')
 		end,
 		options = {
@@ -300,7 +293,7 @@ AddEventHandler('esx_methcar:Context1', function()
 					if Config.Debug then print('Pressed 1') end
 
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -336,7 +329,7 @@ AddEventHandler('esx_methcar:Context1', function()
 					if Config.Debug then print('Pressed 2') end
 					
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local pos = GetEntityCoords(PlayerPedId())
 					notifications(Config.Noti.error, Locales[Config.Locale]['Question_01_Fail'], Config.Noti.time)
@@ -357,7 +350,7 @@ AddEventHandler('esx_methcar:Context1', function()
 					if Config.Debug then print('Pressed 3') end
 
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -403,7 +396,7 @@ AddEventHandler('esx_methcar:Context2', function()
 		id = 'Event_02',
 		title = Locales[Config.Locale]['Question_02'],
 		onExit = function()
-			Citizen.Wait(20)
+			Wait(20)
 			TriggerEvent('esx_methcar:stop')
 		end,
 		options = {
@@ -414,7 +407,7 @@ AddEventHandler('esx_methcar:Context2', function()
 					if Config.Debug then print('Pressed 1') end
 
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -456,7 +449,7 @@ AddEventHandler('esx_methcar:Context2', function()
 					if Config.Debug then print('Pressed 2') end
 					
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					notifications(Config.Noti.error, Locales[Config.Locale]['Question_02_Answer_2_1'], Config.Noti.time)
 					PlayerState:set('Paused', false)
@@ -470,7 +463,7 @@ AddEventHandler('esx_methcar:Context2', function()
 					if Config.Debug then print('Pressed 3') end
 
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -519,7 +512,7 @@ AddEventHandler('esx_methcar:Context3', function()
 		id = 'Event_03',
 		title = Locales[Config.Locale]['Question_03'],
 		onExit = function()
-			Citizen.Wait(20)
+			Wait(20)
 			TriggerEvent('esx_methcar:stop')
 		end,
 		options = {
@@ -530,7 +523,7 @@ AddEventHandler('esx_methcar:Context3', function()
 					if Config.Debug then print('Pressed 1') end
 
 					lib.hideMenu(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					notifications(Config.Noti.error, Locales[Config.Locale]['Question_03_Answer_1_1'], Config.Noti.time)
 					PlayerState:set('Paused', false)
@@ -543,7 +536,7 @@ AddEventHandler('esx_methcar:Context3', function()
 					if Config.Debug then print('Pressed 2') end
 
 					lib.hideMenu(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -585,7 +578,7 @@ AddEventHandler('esx_methcar:Context3', function()
 					if Config.Debug then print('Pressed 3') end
 
 					lib.hideMenu(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -636,7 +629,7 @@ AddEventHandler('esx_methcar:Context4', function()
 		id = 'Event_04',
 		title = Locales[Config.Locale]['Question_04'],
 		onExit = function()
-			Citizen.Wait(20)
+			Wait(20)
 			TriggerEvent('esx_methcar:stop')
 		end,
 		options = {
@@ -647,7 +640,7 @@ AddEventHandler('esx_methcar:Context4', function()
 					if Config.Debug then print('Pressed 1') end
 					
 					lib.hideMenu(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					notifications(Config.Noti.error, Locales[Config.Locale]['Question_04_Answer_1_1'], Config.Noti.time)
 					PlayerState:set('Quality', PlayerState.Quality - 3)
@@ -661,7 +654,7 @@ AddEventHandler('esx_methcar:Context4', function()
 					if Config.Debug then print('Pressed 2') end
 
 					lib.hideMenu(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -707,7 +700,7 @@ AddEventHandler('esx_methcar:Context4', function()
 					if Config.Debug then print('Pressed 3') end
 
 					lib.hideMenu(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -758,7 +751,7 @@ AddEventHandler('esx_methcar:Context5', function()
 		id = 'Event_05',
 		title = Locales[Config.Locale]['Question_05'],
 		onExit = function()
-			Citizen.Wait(20)
+			Wait(20)
 			TriggerEvent('esx_methcar:stop')
 		end,
 		options = {
@@ -769,7 +762,7 @@ AddEventHandler('esx_methcar:Context5', function()
 					if Config.Debug then print('Pressed 1') end
 
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -813,7 +806,7 @@ AddEventHandler('esx_methcar:Context5', function()
 					if Config.Debug then print('Pressed 2') end
 										
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					notifications(Config.Noti.info, Locales[Config.Locale]['Question_05_Answer_2_1'], Config.Noti.time)
 					PlayerState:set('Paused', false)
@@ -826,7 +819,7 @@ AddEventHandler('esx_methcar:Context5', function()
 					if Config.Debug then print('Pressed 3') end
 										
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					notifications(Config.Noti.error, Locales[Config.Locale]['Question_05_Answer_3_1'], Config.Noti.time)
 					PlayerState:set('Paused', false)
@@ -844,7 +837,7 @@ AddEventHandler('esx_methcar:Context6', function()
 		id = 'Event_06',
 		title = Locales[Config.Locale]['Question_06'],
 		onExit = function()
-			Citizen.Wait(20)
+			Wait(20)
 			TriggerEvent('esx_methcar:stop')
 		end,
 		options = {
@@ -855,7 +848,7 @@ AddEventHandler('esx_methcar:Context6', function()
 					if Config.Debug then print('Pressed 1') end
 					
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -897,7 +890,7 @@ AddEventHandler('esx_methcar:Context6', function()
 					if Config.Debug then print('Pressed 2') end
 					
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -941,7 +934,7 @@ AddEventHandler('esx_methcar:Context6', function()
 					if Config.Debug then print('Pressed 3') end
 
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -992,7 +985,7 @@ AddEventHandler('esx_methcar:Context7', function()
 		id = 'Event_07',
 		title = Locales[Config.Locale]['Question_07'],
 		onExit = function()
-			Citizen.Wait(20)
+			Wait(20)
 			TriggerEvent('esx_methcar:stop')
 		end,
 		options = {
@@ -1003,7 +996,7 @@ AddEventHandler('esx_methcar:Context7', function()
 					if Config.Debug then print('Pressed 1') end
 					
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 					
 					notifications(Config.Noti.success, Locales[Config.Locale]['Question_07_Answer_1_1'], Config.Noti.time)
 					PlayerState:set('Quality', PlayerState.Quality + 1)
@@ -1017,7 +1010,7 @@ AddEventHandler('esx_methcar:Context7', function()
 					if Config.Debug then print('Pressed 2') end
 										
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 					
 					notifications(Config.Noti.error, Locales[Config.Locale]['Question_07_Answer_2_1'], Config.Noti.time)
 					PlayerState:set('Paused', false)
@@ -1031,7 +1024,7 @@ AddEventHandler('esx_methcar:Context7', function()
 					if Config.Debug then print('Pressed 3') end
 															
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					notifications(Config.Noti.error, Locales[Config.Locale]['Question_07_Answer_3_1'], Config.Noti.time)
 					PlayerState:set('Paused', false)
@@ -1050,7 +1043,7 @@ AddEventHandler('esx_methcar:Context8', function()
 		id = 'Event_08',
 		title = Locales[Config.Locale]['Question_08'],
 		onExit = function()
-			Citizen.Wait(20)
+			Wait(20)
 			TriggerEvent('esx_methcar:stop')
 		end,
 		options = {
@@ -1061,7 +1054,7 @@ AddEventHandler('esx_methcar:Context8', function()
 					if Config.Debug then print('Pressed 1') end
 
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					local Questions = Config.SkillCheck.Questions
 
@@ -1107,7 +1100,7 @@ AddEventHandler('esx_methcar:Context8', function()
 					if Config.Debug then print('Pressed 2') end
 
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					notifications(Config.Noti.sucess, Locales[Config.Locale]['Question_08_Answer_2_1'], Config.Noti.time)
 					PlayerState:set('Paused', false)
@@ -1122,7 +1115,7 @@ AddEventHandler('esx_methcar:Context8', function()
 					if Config.Debug then print('Pressed 3') end
 					
 					lib.hideContext(true)
-					Citizen.Wait(20)
+					Wait(20)
 
 					notifications(Config.Noti.error, Locales[Config.Locale]['Question_08_Answer_3_1'], Config.Noti.time)
 					PlayerState:set('Paused', false)
