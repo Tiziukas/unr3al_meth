@@ -18,6 +18,7 @@ This resource was created as a free meth script
  - es_extended
 
 # Support
+For support and previews join my discord
 https://discord.gg/euewAxCAUN
 
 
