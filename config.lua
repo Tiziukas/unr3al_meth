@@ -14,6 +14,8 @@ Config.Inventory = {
     oxSplit = true, -- if true, the player only receives the amount he can carry
 }
 
+Config.Cam = true --enable the camera that shows the inside of the journey
+
 Config.Item = {
     Meth = 'meth',
     Acetone = 'acetone',
