@@ -153,7 +153,8 @@ AddEventHandler('esx_methcar:smoke', function(posx, posy, posz, type)
 		if Config.SmokeColor == 'black' then
 			smokecolour = "ent_amb_smoke_foundry"
 		end
-        local smoke = StartParticleFxLoopedAtCoord(smokecolour, posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
+    local smoke = StartParticleFxLoopedAtCoord(smokecolour, posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
+
 		SetParticleFxLoopedAlpha(smoke, 0.8)
 		SetParticleFxLoopedColour(smoke, 0.0, 0.0, 0.0, 0)
 		Wait(20000)
