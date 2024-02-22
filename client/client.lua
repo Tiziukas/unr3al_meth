@@ -52,7 +52,9 @@ end
 RegisterNetEvent('esx_methcar:stop')
 AddEventHandler('esx_methcar:stop', function()
 	PlayerState:set('Cooking', false)
-	toggleCam(false)
+	if (Config.Cam) then
+		toggleCam(false)
+	end
 	DisplayHelpText(Locales[Config.Locale]['Production_Stoped'])
 	FreezeEntityPosition(LastCar, false)
 	StopParticleFxLooped(smokeC, 0)
@@ -88,7 +90,9 @@ AddEventHandler('esx_methcar:startprod', function()
 			if Config.Debug then print('Started Meth production') end
 			
 			notifications(Config.Noti.success, Locales[Config.Locale]['Production_Started'], Config.Noti.time)
-			toggleCam(true)
+			if (Config.Cam) then
+				toggleCam(true)
+			end
 		else
 			lib.hideTextUI()
 
@@ -111,7 +115,9 @@ end)
 
 RegisterNetEvent('esx_methcar:blowup')
 AddEventHandler('esx_methcar:blowup', function(posx, posy, posz)
-	toggleCam(false)
+	if (Config.Cam) then
+		toggleCam(false)
+	end
 	Wait(1500)
 	AddExplosion(posx, posy, posz + 2,23, 20.0, true, false, 1.0, true)
 	SetVehicleEngineHealth(car, -4000)
