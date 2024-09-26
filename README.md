@@ -1,9 +1,9 @@
-# unr3al_backpack
+# unr3al_meth
 
 This resource was created as a free meth script
 
 <b>Features:</b>
-- 0.0 ms Usage
+- 0.1 ms Usage
 - Customizable items and cooking zones
 - Compatibility for ESX
 
@@ -18,6 +18,7 @@ This resource was created as a free meth script
  - es_extended
 
 # Support
+For support and previews join my discord
 https://discord.gg/euewAxCAUN
 
 

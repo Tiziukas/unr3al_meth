@@ -9,7 +9,7 @@ local Keys = {
 	["LEFT"] = 174, ["RIGHT"] = 175, ["TOP"] = 27, ["DOWN"] = 173,
 	["NENTER"] = 201, ["N4"] = 108, ["N5"] = 60, ["N6"] = 107, ["N+"] = 96, ["N-"] = 97, ["N7"] = 117, ["N8"] = 61, ["N9"] = 118
 }
-
+--try
 local CurrentVehicle, LastCar
 local progress, quality = 0, 0
 local started, displayed, pause, posLog, CurrentVehicleLog, carLog, LastCarLog, modelLog, modelNameLog, LastVehicleLog, smokeC, smoke = false, false, false, false, false, false, false, false, false, false, nil, nil
@@ -153,7 +153,7 @@ AddEventHandler('esx_methcar:smoke', function(posx, posy, posz, type)
 		if Config.SmokeColor == 'black' then
 			smokecolour = "ent_amb_smoke_foundry"
 		end
-        local smoke = StartParticleFxLoopedAtCoord(smokecolour, posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
+    local smoke = StartParticleFxLoopedAtCoord(smokecolour, posx, posy, posz + 2.7, 0.0, 0.0, 0.0, 2.0, false, false, false, false)
 		SetParticleFxLoopedAlpha(smoke, 0.8)
 		SetParticleFxLoopedColour(smoke, 0.0, 0.0, 0.0, 0)
 		Wait(20000)
